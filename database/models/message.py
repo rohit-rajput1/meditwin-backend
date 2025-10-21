@@ -21,6 +21,7 @@ class Message(Base):
     
     # Foreign key linking to Chat
     chat_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chat.chat_id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.user_id"))
 
     # Message content
     user_query: Mapped[str] = mapped_column(String)  # user input/query
@@ -32,3 +33,4 @@ class Message(Base):
 
     # Relationship to Chat
     chat = relationship("Chat", back_populates="messages")  # Each message belongs to a chat
+    user = relationship("User", back_populates="messages")
