@@ -22,7 +22,7 @@ class User(Base):
     # User details
     user_name: Mapped[str] = mapped_column(String, nullable=False)
     user_email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    user_password: Mapped[str] = mapped_column(String, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
     # Relationships
