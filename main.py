@@ -5,7 +5,7 @@ from database.settings import engine
 from database.models import *
 import config
 # Add Auth Routers Here
-
+from src.auth import views as auth_views
 
 app = FastAPI(
     title="Meditwin Backend",
@@ -26,8 +26,11 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=config.SECRET_KEY,
     session_cookie=config.SESSION_COOKIE,
-    max_age=config.SESSION_MAX_AGE
+    max_age=int(config.SESSION_MAX_AGE)
 )
+
+# Auth Routes
+app.include_router(auth_views.auth,prefix="/auth")
 
 @app.get('/')
 async def root():
