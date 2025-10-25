@@ -1,20 +1,21 @@
 from datetime import date, datetime
-from pydantic import BaseModel,EmailStr
 from uuid import UUID
 from typing import List,Optional
+from pydantic import BaseModel, EmailStr, validator
 
+# Request schema
 class UserCreate(BaseModel):
-    user_name: str
     user_email: EmailStr
     password: str
 
+# Response schema
 class UserResponse(BaseModel):
-    user_id: str
-    user_name: str
+    user_id: UUID
     user_email: EmailStr
 
     class Config:
         from_attributes = True
+
 
 class UserLogin(BaseModel):
     user_email: EmailStr

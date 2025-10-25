@@ -23,9 +23,8 @@ async def login_user(request: Request, email: str, password: str, db: AsyncSessi
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
-async def register_user(user_name: str, user_email: str, password: str, db: AsyncSession):
+async def register_user(user_email: str, password: str, db: AsyncSession):
     try:
-        # Check if the user already exists
         result = await db.execute(select(user.User).where(user.User.user_email == user_email))
         existing_user = result.scalars().first()
 
@@ -35,10 +34,9 @@ async def register_user(user_name: str, user_email: str, password: str, db: Asyn
                 detail="Email already registered"
             )
 
-        # Hash the password and create new user
         hashed_password = hash_password(password)
+
         new_user = user.User(
-            user_name=user_name,
             user_email=user_email,
             hashed_password=hashed_password
         )
@@ -49,6 +47,8 @@ async def register_user(user_name: str, user_email: str, password: str, db: Asyn
 
         return new_user
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

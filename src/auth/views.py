@@ -37,19 +37,24 @@ async def logout(request: Request):
         )
 
 
-@auth.post('/register', response_model=schema.CurrentUser, status_code=status.HTTP_201_CREATED)
+@auth.post('/register', response_model=schema.UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: schema.UserCreate, db: AsyncSession = Depends(get_db)):
+    """
+    Register endpoint — expects user_email and password.
+    """
     try:
-        new_user = await manager.register_user(user.user_name, user.user_email, user.password, db)
+        new_user = await manager.register_user(user.user_email, user.password, db)
         return new_user
+
     except HTTPException:
-        # Re-raise known HTTP exceptions (like email already registered)
+        # Raise HTTPExceptions from manager as-is
         raise
+
     except Exception as e:
-        # Catch-all for unexpected errors
+        # Catch all unexpected errors
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during registration: {str(e)}"
+            detail=f"Error registering user: {str(e)}"
         )
     
 @auth.post(

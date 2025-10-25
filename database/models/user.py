@@ -20,15 +20,14 @@ class User(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # User details
-    user_name: Mapped[str] = mapped_column(String, nullable=False)
     user_email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
     # Relationships
-    profile = relationship("UserProfile", back_populates="user", uselist=False)  # One-to-one profile
-    health_info = relationship("HealthInfo", back_populates="user", uselist=False)  # One-to-one health info
-    reports = relationship("Report", back_populates="user", lazy="dynamic")  # One-to-many reports
-    dashboards = relationship("Dashboard", back_populates="user", lazy="dynamic")  # One-to-many dashboards
-    chats = relationship("Chat", back_populates="user", lazy="dynamic")  # One-to-many chats
-    messages = relationship("Message", back_populates="user", lazy="dynamic")  # One-to-many messages
+    profile = relationship("UserProfile", back_populates="user", uselist=False)
+    health_info = relationship("HealthInfo", back_populates="user", uselist=False)
+    reports = relationship("Report", back_populates="user", lazy="dynamic")
+    dashboards = relationship("Dashboard", back_populates="user", lazy="dynamic")
+    chats = relationship("Chat", back_populates="user", lazy="dynamic")
+    messages = relationship("Message", back_populates="user", lazy="dynamic")
