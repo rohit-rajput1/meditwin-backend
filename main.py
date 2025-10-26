@@ -4,9 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from database.settings import engine
 from database.models import *
 import config
-# Add Auth Routers Here
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from src.upload.handler import rate_limit_handler
+
+# Import Routers
 from src.auth import views as auth_views
 from src.home import views as home_views
+from src.upload import views as upload_views
 
 app = FastAPI(
     title="Meditwin Backend",
@@ -30,11 +36,21 @@ app.add_middleware(
     max_age=int(config.SESSION_MAX_AGE)
 )
 
+# Initialize Limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# Use your custom handler instead of private SlowAPI handler
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
+
 # Auth Routes
 app.include_router(auth_views.auth,prefix="/auth")
 
 # Home Routes
 app.include_router(home_views.report_router,prefix="/report")
+
+# Upload Routes
+app.include_router(upload_views.upload_router,prefix="/upload")
 
 @app.get('/')
 async def root():
