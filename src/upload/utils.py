@@ -16,11 +16,8 @@ async def ocr_image(file_bytes: bytes) -> str:
     """
     try:
         image = Image.open(BytesIO(file_bytes))
-
-        # Auto-orient based on EXIF (common for photos)
         image = ImageOps.exif_transpose(image)
 
-        # Convert to grayscale to improve OCR accuracy
         if image.mode not in ("L", "RGB"):
             image = image.convert("L")
 
