@@ -14,25 +14,18 @@ openai_client = OpenAI(api_key=config.OPENAI_KEY)
 pinecone_client = Pinecone(api_key=config.PINECONE_API_KEY)
 pinecone_index_name = config.PINECONE_INDEX_NAME
 
-# EMBEDDING CONFIGURATION FOR 1536 DIMENSION INDEX
 EMBEDDING_DIMENSION = 1536
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 print(f"Using embedding model: {EMBEDDING_MODEL} with dimension: {EMBEDDING_DIMENSION}")
 
-# Create index if it doesn't exist
+# Create index if not exists
 if not pinecone_client.has_index(pinecone_index_name):
-    print(f"Creating Pinecone index: {pinecone_index_name}")
     pinecone_client.create_index(
         name=pinecone_index_name,
         dimension=EMBEDDING_DIMENSION,
         metric="cosine",
-        spec={
-            "serverless": {
-                "cloud": "aws",
-                "region": "us-east-1"
-            }
-        }
+        spec={"serverless": {"cloud": "aws", "region": "us-east-1"}}
     )
     print(f"Index {pinecone_index_name} created successfully!")
 else:

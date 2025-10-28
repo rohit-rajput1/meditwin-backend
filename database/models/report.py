@@ -22,16 +22,12 @@ class Report(Base):
 
     report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.user_id"))
-
-    # Instead of Enum, we use a ForeignKey
     report_type_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("report_type.report_type_id"))
-
-    report_file_url: Mapped[str] = mapped_column(String,nullable=True)
     summary: Mapped[dict] = mapped_column(JSON, nullable=True)
     key_findings: Mapped[dict] = mapped_column(JSON, nullable=True)
     insights: Mapped[dict] = mapped_column(JSON, nullable=True)
     recommendations: Mapped[dict] = mapped_column(JSON, nullable=True)
-
+    status: Mapped[str] = mapped_column(String, default="processing")
 
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
