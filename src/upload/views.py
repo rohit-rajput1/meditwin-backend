@@ -7,7 +7,7 @@ from database.gets import get_db
 from database.models.report import Report
 from datetime import datetime, timezone
 from src.auth.dependency import get_current_user
-from sqlalchemy import insert
+from sqlalchemy import insert,select
 from uuid import uuid4
 
 upload_router = APIRouter(tags=["Upload"])
@@ -60,6 +60,23 @@ async def upload_file(
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
+@upload_router.get("/status/{file_id}")
+async def get_report_status(file_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Check the processing status of a report by file_id.
+    Returns: { "file_id": str, "status": str }
+    """
+    result = await db.execute(select(Report).where(Report.report_id == file_id))
+    report = result.scalar_one_or_none()
+
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return {
+        "file_id": file_id,
+        "status": report.status
+    }
+
 @upload_router.post("/{file_id}", response_model=AnalysisResponse)
 async def analyze_report_file(file_id: str, db: AsyncSession = Depends(get_db)):
     """
