@@ -24,12 +24,24 @@ async def extract_text(file: UploadFile, content: bytes = None) -> str:
                 page_text = page.extract_text()
                 if page_text:
                     text += page_text + "\n"
+            
+            # If PDF has no text, try OCR on it
+            if not text.strip():
+                print(f"PDF has no extractable text, attempting OCR...")
+                text = await ocr_image(content)
+            
             return text.strip()
         except Exception as e:
             print(f"PDF extraction failed: {e}")
             return ""
     elif filename.endswith(("jpg", "jpeg", "png")):
-        return await ocr_image(content)
+        try:
+            text = await ocr_image(content)
+            print(f"OCR extracted {len(text)} characters from image")
+            return text
+        except Exception as e:
+            print(f"Image OCR failed: {e}")
+            return ""
     else:
         return ""
 
