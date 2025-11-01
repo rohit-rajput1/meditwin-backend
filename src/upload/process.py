@@ -133,24 +133,25 @@ async def generate_embedding(text: str):
             raise
         raise RuntimeError(f"OpenAI embedding failed: {e}")
 
-async def upload_to_pinecone(file_id, filename, embedding):
-    """Upsert embedding into Pinecone under a unique namespace."""
+async def upload_to_pinecone(file_id, filename, embedding, text):
+    """Upsert embedding into Pinecone and store the text in metadata."""
     try:
         namespace = generate_namespace(file_id, filename)
         logger.info(f"Uploading to Pinecone namespace: {namespace}")
-        
+
+        # Include text in metadata
         response = pinecone_index.upsert(
-            vectors=[(str(file_id), embedding, {"filename": filename})],
+            vectors=[(str(file_id), embedding, {"filename": filename, "text": text})],
             namespace=namespace
         )
-        
+
         if getattr(response, "upserted_count", 0) == 0:
             logger.warning(f"No vectors upserted for namespace {namespace}")
         else:
             logger.info(f"Upserted {response.upserted_count} vector(s) into namespace {namespace}")
-        
+
         return namespace
-        
+
     except Exception as e:
         raise RuntimeError(f"Pinecone upsert failed: {e}")
 
@@ -201,7 +202,7 @@ async def process_upload(file: UploadFile, file_id=None, content: bytes = None):
         
         # Step 3: Upload embedding to Pinecone
         logger.info("Step 3: Uploading to Pinecone...")
-        namespace = await upload_to_pinecone(file_id, file.filename, embedding)
+        namespace = await upload_to_pinecone(file_id, file.filename, embedding, text)
         
         # Step 4: Update Postgres metadata
         logger.info("Step 4: Updating database...")
