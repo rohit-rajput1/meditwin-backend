@@ -13,23 +13,20 @@ openai_client = OpenAI(api_key=config.OPENAI_KEY)
 # Pinecone Initialization
 pinecone_client = Pinecone(api_key=config.PINECONE_API_KEY)
 pinecone_index_name = config.PINECONE_INDEX_NAME
-
 EMBEDDING_DIMENSION = 1536
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-print(f"Using embedding model: {EMBEDDING_MODEL} with dimension: {EMBEDDING_DIMENSION}")
-
 # Create index if not exists
-if not pinecone_client.has_index(pinecone_index_name):
-    pinecone_client.create_index(
-        name=pinecone_index_name,
-        dimension=EMBEDDING_DIMENSION,
-        metric="cosine",
-        spec={"serverless": {"cloud": "aws", "region": "us-east-1"}}
-    )
-    print(f"Index {pinecone_index_name} created successfully!")
-else:
-    print(f"Index {pinecone_index_name} already exists")
+try:
+    if not pinecone_client.has_index(pinecone_index_name):
+        pinecone_client.create_index(
+            name=pinecone_index_name,
+            dimension=EMBEDDING_DIMENSION,
+            metric="cosine",
+            spec={"serverless": {"cloud": "aws", "region": "us-east-1"}}
+        )
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize Pinecone index: {e}")
 
 # Connect to the index
 pinecone_index = pinecone_client.Index(pinecone_index_name)
@@ -39,10 +36,15 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Helper Functions
 async def get_report_type(db: AsyncSession, report_type_id: str):
-    report_type = await db.get(ReportType, report_type_id)
-    if not report_type:
-        raise HTTPException(status_code=404, detail="Report type not found")
-    return report_type
+    try:
+        report_type = await db.get(ReportType, report_type_id)
+        if not report_type:
+            raise HTTPException(status_code=404, detail="Report type not found")
+        return report_type
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch report type")
 
 def allowed_file(filename: str): 
     allowed_extensions = ["pdf", "jpeg", "jpg", "png"] 

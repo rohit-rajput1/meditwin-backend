@@ -13,5 +13,5 @@ class AnalysisRequest(BaseModel):
 class AnalysisResponse(BaseModel):
     summary: str
     key_findings: Dict[str, Any]
-    insights: Optional[str]
+    insights: Optional[str] = None
     recommendations: List[str]

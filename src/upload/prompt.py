@@ -11,6 +11,12 @@ PROMPTS = {
         
         TASK: Extract and structure prescription information into a standardized JSON format.
         
+        IMPORTANT OUTPUT RULES:
+        - Return ONLY a JSON object. No markdown, no explanation, no additional text.
+        - insights MUST be a one-line sentence summarizing the treatment approach.
+        - Do NOT guess or infer anything not explicitly written.
+        - If any information is missing, use "Not specified".
+
         OUTPUT FORMAT (JSON):
         {
             "summary": "Brief one-sentence overview (e.g., 'Prescription analysis complete. Treatment plan for [Condition] with [X] medications prescribed for [Y]-day course.')",
@@ -29,6 +35,7 @@ PROMPTS = {
                     "instructions": "Special instructions if any"
                 }
             ],
+            "insights": "One-line takeaway describing the treatment strategy or clinical intent.",
             "recommendations": [
                 "Take all medications as prescribed",
                 "Drink plenty of fluids while on antibiotics",
@@ -40,14 +47,15 @@ PROMPTS = {
         CRITICAL INSTRUCTIONS:
         - EXTRACT EXACTLY what's written - do not infer or add information
         - Summary must be ONE sentence mentioning condition, number of medications, and duration
-        - key_findings must be a DICTIONARY (object) with exactly these 4 keys:
-            * "Diagnosis": the condition being treated
-            * "Treatment Duration": how long (e.g., "7 days")
-            * "Medications Prescribed": count as text (e.g., "5 Medications Prescribed")
-            * "Follow-up Required": date or "Not specified"
+        - key_findings must be a DICTIONARY with exactly these 4 keys:
+            * "Diagnosis"
+            * "Treatment Duration"
+            * "Medications Prescribed"
+            * "Follow-up Required"
         - medications is an ARRAY of medication objects with full details
-        - recommendations is an ARRAY of strings (4-6 practical advice items)
-        - Use standard abbreviations: TID (3x/day), BID (2x/day), OD (once daily), PRN (as needed)
+        - insights MUST be a one-line sentence
+        - recommendations is an ARRAY of strings (4–6 practical advice items)
+        - Use standard abbreviations: TID, BID, OD, PRN, etc.
         - If information is missing, use "Not specified"
         
         EXAMPLE OUTPUT:
@@ -68,6 +76,7 @@ PROMPTS = {
                     "instructions": "Take with food"
                 }
             ],
+            "insights": "Treatment focuses on infection control using a 7-day antibiotic regimen.",
             "recommendations": [
                 "Take all medications as prescribed",
                 "Complete full course of antibiotics even if symptoms improve",
@@ -87,7 +96,14 @@ PROMPTS = {
         - Results must be interpreted by a qualified healthcare professional
         
         TASK: Analyze blood test results and provide structured clinical documentation.
-        
+
+        IMPORTANT OUTPUT RULES:
+        - Return ONLY a JSON object. No markdown or explanation.
+        - insights MUST be a one-line clinical summary.
+        - Do NOT guess or assume values not present.
+        - If all values appear normal → insights: "Blood test values appear within normal range."
+        - If something is missing, use "Not specified".
+
         OUTPUT FORMAT (JSON):
         {
             "summary": "One concise sentence describing overall results",
@@ -97,6 +113,7 @@ PROMPTS = {
                 "Parameter 3 Name": "X.XX unit (Status)",
                 "Parameter 4 Name": "X.XX unit (Status)"
             },
+            "insights": "One-line clinical interpretation summarizing abnormalities or overall status.",
             "recommendations": [
                 "Specific recommendation 1",
                 "Specific recommendation 2",
@@ -107,21 +124,20 @@ PROMPTS = {
         
         CRITICAL INSTRUCTIONS:
         - EXTRACT ALL measured parameters from the actual report
-        - key_findings must be a DICTIONARY (object) with 4-6 most important parameters
-        - Dictionary keys are parameter names, values are "X.XX unit (Status)"
+        - key_findings must be a DICTIONARY (4–6 key parameters)
+        - Dictionary keys = parameter names
+        - Dictionary values = "X.XX unit (Status)"
         - Status must be: Normal, Low, High, Elevated, Slightly Elevated, Slightly Low
-        - Prioritize abnormal values first, then key normal values
-        - Compare actual values to reference ranges shown in report
-        - Summary is ONE sentence describing overall findings
-        - recommendations is an ARRAY of 4-6 specific, actionable strings
+        - Prioritize abnormal parameters
+        - Summary must be ONE sentence
+        - insights must be ONE sentence
+        - recommendations = 4–6 actionable, specific items
         
         STATUS DETERMINATION:
-        - Compare actual value to reference range in report
-        - "Normal" if within range
-        - "Low" or "Slightly Low" if below minimum
-        - "High" or "Elevated" or "Slightly Elevated" if above maximum
+        - Compare actual value to reference range
+        - Determine Normal / Low / High / Elevated / Slightly Elevated
         
-        EXAMPLE OUTPUT (format only - use actual values from report):
+        EXAMPLE OUTPUT:
         {
             "summary": "Blood test results show normal hemoglobin and white blood cells with slightly elevated cholesterol levels.",
             "key_findings": {
@@ -130,6 +146,7 @@ PROMPTS = {
                 "Total Cholesterol": "220 mg/dL (Slightly Elevated)",
                 "Blood Pressure": "128/82 mmHg (Elevated)"
             },
+            "insights": "Most parameters are normal with mild cholesterol elevation requiring lifestyle adjustments.",
             "recommendations": [
                 "Maintain regular exercise routine",
                 "Reduce sodium intake",
@@ -139,12 +156,10 @@ PROMPTS = {
         }
         
         EXTRACTION RULES:
-        - DO NOT use placeholder values - extract actual values from the image
-        - USE exact units from report (g/dL, K/µL, mg/dL, mmHg, %, thou/mm3, etc.)
-        - INCLUDE 4-6 most important parameters in key_findings dictionary
-        - If doctor's notes/advisories are in report, include in recommendations
-        - Make recommendations specific to actual findings
-        - If all normal: provide general wellness advice
-        - If abnormal: provide specific actions for those abnormalities
+        - Do NOT use placeholder values
+        - Use exact units from report
+        - Include 4–6 important parameters
+        - Make recommendations specific to findings
+        - If all normal: provide general health recommendations
     """)
 }
