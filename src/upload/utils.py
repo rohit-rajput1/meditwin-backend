@@ -1,30 +1,11 @@
 import uuid
-import logging
+import base64
 from io import BytesIO
 from PIL import Image, ImageOps, ImageEnhance
-import numpy as np
+from openai import OpenAI
+import config
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Lazy initialization of PaddleOCR to avoid startup issues
-_ocr_engine = None
-
-def get_ocr_engine():
-    """Lazy initialization of PaddleOCR engine."""
-    global _ocr_engine
-    if _ocr_engine is None:
-        try:
-            from paddleocr import PaddleOCR
-            logger.info("Initializing PaddleOCR engine...")
-            # Initialize with minimal parameters - newer versions don't support show_log or use_gpu
-            _ocr_engine = PaddleOCR(use_angle_cls=True, lang='en')
-            logger.info("PaddleOCR engine initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize PaddleOCR: {e}", exc_info=True)
-            raise RuntimeError(f"PaddleOCR initialization failed: {e}")
-    return _ocr_engine
+openai_client = OpenAI(api_key=config.OPENAI_KEY)
 
 def generate_namespace(file_id: uuid.UUID, filename: str) -> str:
     """Generate a unique namespace for Pinecone."""
@@ -34,101 +15,114 @@ def create_file_id() -> uuid.UUID:
     """Generate a unique UUID for a file/report."""
     return uuid.uuid4()
 
-def preprocess_image_for_ocr(image: Image.Image) -> Image.Image:
-    """Preprocess image to improve OCR accuracy."""
-    # Convert to RGB if needed
-    if image.mode not in ("RGB", "L"):
-        image = image.convert("RGB")
-    
-    # Resize small images for better OCR
-    width, height = image.size
-    if width < 1000 or height < 1000:
-        scale = max(1000 / width, 1000 / height)
-        new_size = (int(width * scale), int(height * scale))
-        image = image.resize(new_size, Image.Resampling.LANCZOS)
-        logger.info(f"Resized image from {width}x{height} to {new_size[0]}x{new_size[1]}")
-    
-    # Enhance contrast for better text detection
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.5)
-    
-    # Enhance sharpness
-    enhancer = ImageEnhance.Sharpness(image)
-    image = enhancer.enhance(1.5)
-    
-    return image
+def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
+    """Convert PIL Image to base64 string."""
+    try:
+        buffered = BytesIO()
+        image.save(buffered, format=format)
+        img_bytes = buffered.getvalue()
+        return base64.b64encode(img_bytes).decode('utf-8')
+    except Exception as e:
+        raise RuntimeError(f"Failed to convert image to base64: {str(e)}")
 
-async def ocr_image(file_bytes: bytes) -> str:
+def enhance_image_for_ocr(image: Image.Image) -> Image.Image:
+    """Enhance image quality for better OCR results."""
+    try:
+        if image.mode not in ("RGB", "L"):
+            image = image.convert("RGB")
+        
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(1.5)
+        
+        enhancer = ImageEnhance.Sharpness(image)
+        image = enhancer.enhance(2.0)
+        
+        return image
+    except Exception:
+        return image
+
+async def ocr_image(file_bytes: bytes, is_medical_document: bool = True) -> str:
     """
-    Extract text from an image using PaddleOCR.
-    Supports PNG, JPG, JPEG, etc.
+    Extract text from an image using OpenAI Vision API.
+    Enhanced for handwritten medical prescriptions and documents.
     """
     try:
-        # Get OCR engine (lazy initialization)
-        ocr_engine = get_ocr_engine()
-        
         # Load and prepare image
         image = Image.open(BytesIO(file_bytes))
-        logger.info(f"Image loaded: mode={image.mode}, size={image.size}")
-        
         image = ImageOps.exif_transpose(image)
+        image = enhance_image_for_ocr(image)
         
-        # Try OCR on original image first (without preprocessing)
-        img_np_original = np.array(image.convert("RGB"))
-        logger.info("Attempting OCR on original image...")
+        # Resize if too large
+        max_dimension = 2000
+        width, height = image.size
+        if width > max_dimension or height > max_dimension:
+            scale = min(max_dimension / width, max_dimension / height)
+            new_size = (int(width * scale), int(height * scale))
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
         
-        # Call OCR without cls parameter for newer versions
-        result = ocr_engine.ocr(img_np_original)
+        # Convert to base64
+        img_format = "PNG"
+        base64_image = image_to_base64(image, format=img_format)
         
-        # If no results, try with preprocessing
-        if not result or not result[0]:
-            logger.info("No text detected on original image, trying with preprocessing...")
-            image_processed = preprocess_image_for_ocr(image)
-            img_np_processed = np.array(image_processed)
-            result = ocr_engine.ocr(img_np_processed)
-        
-        # Parse results with intelligent text reconstruction
-        text_lines = []
-        if result and result[0]:
-            logger.info(f"OCR detected {len(result[0])} text boxes")
-            
-            for idx, line in enumerate(result[0]):
-                if line and len(line) >= 2:
-                    detected_text = line[1][0].strip()
-                    confidence = line[1][1] if len(line[1]) > 1 else 0.0
-                    
-                    if detected_text:
-                        text_lines.append(detected_text)
-                        logger.debug(f"Box {idx}: '{detected_text}' (confidence: {confidence:.2f})")
-        
-        if not text_lines:
-            logger.warning("No text detected by OCR")
-            logger.warning(f"Image info: size={image.size}, mode={image.mode}")
-            return ""
-        
-        # Smart text joining logic
-        # Check if most lines are single characters (indicates poor OCR)
-        single_char_count = sum(1 for t in text_lines if len(t) == 1)
-        avg_length = sum(len(t) for t in text_lines) / len(text_lines) if text_lines else 0
-        
-        logger.info(f"OCR stats: {len(text_lines)} boxes, {single_char_count} single chars, avg length: {avg_length:.1f}")
-        
-        if single_char_count > len(text_lines) * 0.7 or avg_length < 2:
-            # Mostly single characters - join with space
-            text = " ".join(text_lines).strip()
-            logger.info("Character-by-character detection - joining with spaces")
+        # Choose prompt based on document type
+        if is_medical_document:
+            extraction_prompt = """You are an expert medical transcriptionist. Extract ALL text from this medical document image.
+
+IMPORTANT INSTRUCTIONS:
+1. This may contain HANDWRITTEN text - read it carefully, even if messy
+2. Extract EVERY piece of information including:
+   - Patient details (name, age, sex, address, date)
+   - Doctor/Physician information (name, license numbers)
+   - Prescription details (Rx section):
+     * Medicine names (even if partially legible)
+     * Dosages (e.g., 500mg)
+     * Instructions (e.g., "1 cap 3x a day", "Sig:")
+   - Any printed or stamped text
+   - Any signatures or illegible marks (note as [signature] or [illegible])
+3. Preserve the document structure:
+   - Use headers like "Patient Information:", "Prescription:", "Doctor Details:"
+   - Keep line breaks to maintain readability
+   - If something is unclear, make your best attempt and note it like [possibly: text]
+4. For handwritten text:
+   - Take your time to decipher each letter
+   - Common medical abbreviations: Rx (prescription), Sig (directions), Cap (capsule), Tab (tablet)
+   - Look at context clues from other words
+
+Return ONLY the extracted text in a clear, organized format. Do not add explanations."""
         else:
-            # Normal text detection - preserve line breaks
-            text = "\n".join(text_lines).strip()
-            logger.info("Normal text detection - preserving line breaks")
+            extraction_prompt = """Extract all visible text from this image. 
+Return ONLY the extracted text, preserving the layout and formatting as much as possible.
+If there are tables, preserve their structure.
+Pay special attention to handwritten text - decode it carefully.
+Do not add any explanations or descriptions."""
         
-        logger.info(f"OCR extracted {len(text)} characters total")
-        if text:
-            logger.info(f"Text preview: '{text[:100]}...'")
+        # Call OpenAI Vision API
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": extraction_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/{img_format.lower()};base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=4096,
+            temperature=0.1
+        )
         
-        return text
+        text = response.choices[0].message.content.strip()
+        return text if text else ""
         
     except Exception as e:
-        logger.error(f"OCR failed: {e}", exc_info=True)
-        # Re-raise with more context
-        raise RuntimeError(f"OCR processing error: {e}")
+        raise RuntimeError(f"OCR processing error: {str(e)}")
