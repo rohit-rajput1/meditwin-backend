@@ -13,7 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 import uuid
 from database.base import Base
-from .report_type import ReportType  # <-- Use the table, not Enum
+from .report_type import ReportType    
 
 class Dashboard(Base):
     __tablename__ = "dashboard"
