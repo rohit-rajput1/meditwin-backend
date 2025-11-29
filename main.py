@@ -14,6 +14,7 @@ from src.auth import views as auth_views
 from src.home import views as home_views
 from src.upload import views as upload_views
 from src.dashboard import views as dashboard_views
+from src.chat import views as chat_views
 
 app = FastAPI(
     title="Meditwin Backend",
@@ -55,6 +56,9 @@ app.include_router(upload_views.upload_router,prefix="/upload")
 
 # Dashboard Route
 app.include_router(dashboard_views.dashboard_router,prefix='/dashboard')
+
+# Chat Routes
+app.include_router(chat_views.chat_router,prefix='/chat')
 
 @app.get('/')
 async def root():
