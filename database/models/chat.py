@@ -18,11 +18,8 @@ class Chat(Base):
 
     # Primary key UUID
     chat_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    
     # Chat details
     chat_name: Mapped[str] = mapped_column(String)
-    chat_context: Mapped[dict] = mapped_column(JSON)
-
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
@@ -33,7 +30,7 @@ class Chat(Base):
 
     # Foreign keys
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.user_id"))
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("report.report_id"), nullable=True)
+    file_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("report.report_id"), nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="chats")  # Chat creator
