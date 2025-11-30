@@ -154,7 +154,48 @@ async def add_health_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error occurred: {str(e)}"
         )
-    
+
+@auth.get(
+    "/health-info",
+    response_model=schema.HealthInfoResponse,
+    status_code=status.HTTP_200_OK
+)
+async def get_health_info(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """
+    Get the health info for the currently logged-in user.
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not authenticated"
+        )
+
+    try:
+        health_info = await manager.get_health_info(current_user.user_id, db)
+
+        if not health_info:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Health info not found. Please add it first."
+            )
+
+        return health_info
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error occurred: {str(e)}"
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error occurred: {str(e)}"
+        )
+
 @auth.get("/me")
 async def get_current_user_info(
     current_user=Depends(get_current_user)

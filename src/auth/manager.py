@@ -159,6 +159,22 @@ async def add_or_update_health_info(user_id: str, data: schema.HealthInfoUpdate,
     except Exception as e:
         raise Exception(f"Unexpected error: {str(e)}")
 
+async def get_health_info(user_id: str, db: AsyncSession) -> HealthInfo:
+    """
+    Retrieve the health info for the currently logged-in user.
+    """
+    try:
+        result = await db.execute(
+            select(HealthInfo).where(HealthInfo.user_id == user_id)
+        )
+        health_info = result.scalars().first()
+        return health_info
+
+    except SQLAlchemyError as e:
+        raise Exception(f"Database error occurred while fetching health info: {str(e)}")
+
+    except Exception as e:
+        raise Exception(f"Unexpected error occurred while fetching health info: {str(e)}")
 
 async def logout_user(request: Request):
     try:
