@@ -99,7 +99,24 @@ async def add_or_update_user_profile(user_id: str, data: schema.UserProfileUpdat
     except Exception as e:
         # Catch-all for other errors
         raise Exception(f"Unexpected error occurred while adding/updating profile: {str(e)}")
-    
+
+async def get_user_profile(user_id: str, db: AsyncSession) -> UserProfile:
+    """
+    Retrieve the profile info for the currently logged-in user.
+    """
+    try:
+        result = await db.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        profile = result.scalars().first()
+        return profile
+
+    except SQLAlchemyError as e:
+        raise Exception(f"Database error occurred while fetching profile: {str(e)}")
+
+    except Exception as e:
+        raise Exception(f"Unexpected error occurred while fetching profile: {str(e)}")
+
 async def add_or_update_health_info(user_id: str, data: schema.HealthInfoUpdate, db: AsyncSession) -> HealthInfo:
     """
     Add or update the health info for the currently logged-in user.
