@@ -23,19 +23,20 @@ app = FastAPI(
     openapi_version="3.0.3"
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# SESSION MIDDLEWARE — THIS IS THE FIX
 app.add_middleware(
     SessionMiddleware,
     secret_key=config.SECRET_KEY,
-    session_cookie=config.SESSION_COOKIE,
-    max_age=int(config.SESSION_MAX_AGE)
+    session_cookie=config.SESSION_COOKIE, 
+    max_age=int(config.SESSION_MAX_AGE),       
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize Limiter
