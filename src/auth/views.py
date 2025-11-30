@@ -36,7 +36,6 @@ async def logout(request: Request):
             detail=f"An error occurred during logout: {str(e)}"
         )
 
-
 @auth.post('/register', response_model=schema.UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: schema.UserCreate, db: AsyncSession = Depends(get_db)):
     """
@@ -57,11 +56,7 @@ async def register(user: schema.UserCreate, db: AsyncSession = Depends(get_db)):
             detail=f"Error registering user: {str(e)}"
         )
     
-@auth.post(
-    "/profile-info",
-    response_model=schema.UserProfileResponse,
-    status_code=status.HTTP_200_OK
-)
+@auth.post("/profile-info",response_model=schema.UserProfileResponse,status_code=status.HTTP_200_OK)
 async def add_profile_info(
     profile_data: schema.UserProfileUpdate,
     db: AsyncSession = Depends(get_db),
@@ -92,12 +87,45 @@ async def add_profile_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error occurred: {str(e)}"
         )
-    
-@auth.post(
-    "/health-info",
-    response_model=schema.HealthInfoResponse,
-    status_code=status.HTTP_200_OK
-)
+
+@auth.get("/profile-info",response_model=schema.UserProfileResponse,status_code=status.HTTP_200_OK)
+async def get_profile_info(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """
+    Get the profile info for the currently logged-in user.
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not authenticated"
+        )
+
+    try:
+        profile = await manager.get_user_profile(current_user.user_id, db)
+
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Profile not found. Please create your profile first."
+            )
+
+        return profile
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error occurred: {str(e)}"
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error occurred: {str(e)}"
+        )
+
+@auth.post("/health-info",response_model=schema.HealthInfoResponse,status_code=status.HTTP_200_OK)
 async def add_health_info(
     health_data: schema.HealthInfoUpdate,
     db: AsyncSession = Depends(get_db),
@@ -126,3 +154,19 @@ async def add_health_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error occurred: {str(e)}"
         )
+    
+@auth.get("/me")
+async def get_current_user_info(
+    current_user=Depends(get_current_user)
+):
+    """Get current authenticated user information"""
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not authenticated"
+        )
+    
+    return {
+        "user_id": current_user.user_id,
+        "email": current_user.user_email,  
+    }
