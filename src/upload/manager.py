@@ -33,9 +33,11 @@ def extract_json_from_text(text: str) -> dict:
     """Extract clean JSON from LLM output."""
     try:
         text = text.strip()
+        # Try to find JSON between markdown code blocks
         json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
         if json_match:
             text = json_match.group(1)
+        # Remove markdown code block markers if present
         text = re.sub(r'^```json\s*|\s*```$', '', text, flags=re.MULTILINE).strip()
         return json.loads(text)
     except json.JSONDecodeError:
@@ -52,13 +54,8 @@ async def analyze_report(file_id: str, db: AsyncSession, openai_client):
         if not report:
             raise HTTPException(404, "Report not found")
         
-        if report.status == "processing":
-            raise HTTPException(400, "Report is still being processed. Try again shortly.")
-        
-        if report.status == "failed":
-            raise HTTPException(400, f"Report processing failed: {report.insights.get('error')}")
-        
-        namespace = report.insights.get("namespace")
+        # Get namespace from report insights
+        namespace = report.insights.get("namespace") if report.insights else None
         if not namespace:
             raise HTTPException(400, "Document text not found. Re-upload file.")
         
@@ -81,7 +78,9 @@ async def analyze_report(file_id: str, db: AsyncSession, openai_client):
             raise HTTPException(500, f"Failed to retrieve document: {str(e)}")
         
         # Fetch report type
-        result = await db.execute(select(ReportType).where(ReportType.report_type_id == report.report_type_id))
+        result = await db.execute(
+            select(ReportType).where(ReportType.report_type_id == report.report_type_id)
+        )
         report_type = result.scalar_one_or_none()
         
         if not report_type:
@@ -93,17 +92,15 @@ async def analyze_report(file_id: str, db: AsyncSession, openai_client):
         
         # Prepare OpenAI Prompt
         full_prompt = f"""
-{prompt_template}
-
-=== DOCUMENT TEXT TO ANALYZE ===
-{document_text}
-=== END DOCUMENT TEXT ===
-
-IMPORTANT:
-- Return ONLY valid JSON.
-- No markdown, no comments, no extra text.
-- insights MUST be a ONE-LINE meaningful interpretation.
-"""
+            {prompt_template}
+            === DOCUMENT TEXT TO ANALYZE ===
+            {document_text}
+            === END DOCUMENT TEXT ===
+            IMPORTANT:
+            - Return ONLY valid JSON.
+            - No markdown, no comments, no extra text.
+            - insights MUST be a ONE-LINE meaningful interpretation.
+        """
         
         # OpenAI Call
         try:
@@ -153,6 +150,11 @@ IMPORTANT:
             report.summary = analysis["summary"]
             report.key_findings = analysis["key_findings"]
             report.recommendations = analysis["recommendations"]
+            
+            # Update insights dictionary
+            if not report.insights:
+                report.insights = {}
+            
             report.insights.update({
                 "analysis": analysis,
                 "insights_one_line": analysis["insights"],
