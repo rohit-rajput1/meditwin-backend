@@ -328,16 +328,25 @@ async def create_dashboard(file_id: UUID, db: AsyncSession):
         # Fetch report and report type
         report = await get_report(file_id, db)
         report_type = await get_report_type(report.report_type_id, db)
-        
+
+        # FIX: Check if dashboard already exists
+        existing = await db.execute(
+            select(Dashboard).where(Dashboard.report_id == report.report_id)
+        )
+        existing_dashboard = existing.scalar_one_or_none()
+
+        if existing_dashboard:
+            return existing_dashboard
+
         # Prepare prompt
         prompt, dashboard_type = prepare_prompt(report_type.name.lower(), report)
-        
+
         # Extract data from LLM
         extracted = await extract_dashboard_data_from_llm(prompt, dashboard_type)
-        
+
         # Validate and clean the extracted data
         validated_data = validate_dashboard_data(extracted, dashboard_type)
-        
+
         # Create dashboard
         dashboard = Dashboard(
             user_id=report.user_id,
@@ -349,17 +358,34 @@ async def create_dashboard(file_id: UUID, db: AsyncSession):
             recommendations=validated_data["recommendations"],
             critical_insights=validated_data["criticalInsights"],
         )
-        
+
         db.add(dashboard)
         await db.commit()
         await db.refresh(dashboard)
-        
+
         return dashboard
-    
+
     except HTTPException:
         await db.rollback()
         raise
     except Exception as e:
         await db.rollback()
         traceback.print_exc()
-        raise HTTPException(500, f"Dashboard creation failed: {str(e)}")
+    
+async def get_dashboard_by_file_id(file_id: UUID, db: AsyncSession):
+    try:
+        result = await db.execute(
+            select(Dashboard).where(Dashboard.report_id == file_id)
+        )
+        
+        dashboard = result.scalar_one_or_none()
+
+        if not dashboard:
+            raise HTTPException(404, "Dashboard not found for this file_id")
+
+        return dashboard
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Error fetching dashboard: {str(e)}")
