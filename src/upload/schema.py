@@ -4,6 +4,7 @@ from uuid import UUID
 
 class FileUploadResponse(BaseModel):
     file_id: UUID
+    report_name: str
     status: str
     message: str
 
