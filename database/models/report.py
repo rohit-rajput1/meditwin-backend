@@ -32,6 +32,7 @@ class Report(Base):
         UUID(as_uuid=True), ForeignKey("report_type.report_type_id")
     )
 
+    report_name: Mapped[str] = mapped_column(String, nullable=True)
     summary: Mapped[dict] = mapped_column(JSON, nullable=True)
     key_findings: Mapped[dict] = mapped_column(JSON, nullable=True)
     insights: Mapped[dict] = mapped_column(JSON, nullable=True)

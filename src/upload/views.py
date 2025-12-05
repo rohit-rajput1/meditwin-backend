@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, UploadFile, Form, File, Depends, HTTPException, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from .dependency import limiter, get_report_type, allowed_file, openai_client
@@ -22,45 +23,54 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    """Upload and process a medical document (prescription or blood test report)"""
+    """
+    Upload and process a medical document (prescription or blood report)
+    """
     try:
         # Validate report type
         await get_report_type(db, report_type_id)
-        
+
         # Validate file type
         if not allowed_file(report_file.filename):
             raise HTTPException(
-                status_code=400, 
-                detail="Invalid file type. Allowed formats: PDF, JPEG, JPG, PNG"
+                status_code=400,
+                detail="Invalid file type. Allowed: PDF, JPEG, JPG, PNG"
             )
-        
+
+        # Generate file UUID
         file_id = uuid4()
-        
-        # Insert report entry in Postgres
+
+        # Extract report name (filename without extension)
+        report_name = os.path.splitext(report_file.filename)[0]
+
+        # Insert into Report table
         stmt = insert(Report).values(
             report_id=file_id,
             user_id=current_user.user_id,
             report_type_id=report_type_id,
+            report_name=report_name,
             status="processing",
             uploaded_at=datetime.now(timezone.utc)
         )
+
         await db.execute(stmt)
         await db.commit()
-        
-        # Trigger background processing
+
+        # Background processing
         await file_upload(
-            report_file, 
+            report_file,
             file_id=file_id,
-            background=True, 
+            background=True,
             background_tasks=background_tasks
         )
-        
+
         return FileUploadResponse(
             file_id=file_id,
+            report_name=report_name,
             status="processing",
-            message=f"File '{report_file.filename}' uploaded successfully. Processing in background."
+            message=f"File '{report_file.filename}' uploaded successfully. Processing in background.",
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
