@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from uuid import UUID
-from typing import List
+from typing import List,Optional
 from datetime import datetime
 
 class CreateChatRequest(BaseModel):
@@ -32,12 +32,14 @@ class ChatHistory(BaseModel):
 
 class ChatHistoryResponse(BaseModel):
     chat_id:UUID
-    file_id:UUID
+    file_id:Optional[UUID]
+    is_valid_chat: bool
     messages: List[ChatHistory]
 
 class RecentChatItem(BaseModel):
     chat_id:UUID
     chat_name:str
+    is_valid_chat: bool
 
 class RecentChatResponse(BaseModel):
     chats:List[RecentChatItem]
