@@ -6,7 +6,7 @@ Defines the Chat model for a PostgreSQL database using SQLAlchemy ORM.
 - Linked to User (creator), Report, and contains multiple Messages (one-to-many).
 """
 
-from sqlalchemy import String, DateTime, ForeignKey, JSON
+from sqlalchemy import String, DateTime, ForeignKey, JSON,Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone
@@ -20,6 +20,7 @@ class Chat(Base):
     chat_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Chat details
     chat_name: Mapped[str] = mapped_column(String)
+    is_valid_chat: Mapped[bool] = mapped_column(Boolean, default=True)
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
