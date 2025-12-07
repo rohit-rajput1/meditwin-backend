@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter,Depends,status,Request,HTTPException
+from fastapi import APIRouter, Depends, status, Request, HTTPException
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,7 +17,10 @@ report_router = APIRouter(tags=["Report"])
     response_model=List[schema.ReportTypeResponse],
     status_code=status.HTTP_200_OK
 )
-async def get_report_types(db: AsyncSession = Depends(get_db),current_user=Depends(get_current_user)):
+async def get_report_types(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
     """
     Get the list of all report types with their IDs and names.
     """
@@ -36,16 +39,17 @@ async def get_report_types(db: AsyncSession = Depends(get_db),current_user=Depen
         )
 
 @report_router.get("/report-status", response_model=list[schema.StatusItem])
-async def get_report_status(db: AsyncSession = Depends(get_db),current_user=Depends(get_current_user)):
+async def get_report_status(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
     try:
         query = select(Report.status).distinct()
         result = await db.execute(query)
         statuses = [row[0] for row in result.fetchall() if row[0]]
-
         return [schema.StatusItem(status=s) for s in statuses]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
-
 
 @report_router.get(
     "/report-list",
@@ -63,9 +67,9 @@ async def get_report_list(
 ):
     try:
         reports, total = await manager.get_all_reports(
-            db, search, sort, page, limit, report_type_name, status
+            db,current_user.user_id,  search, sort, page, limit, report_type_name, status
         )
-
+        
         total_pages = max((total + limit - 1) // limit, 1)
 
         # Clean summary (fix string problem)
@@ -82,7 +86,8 @@ async def get_report_list(
                 report_name=r.report_name,
                 report_type=r.report_type.name,
                 summary=clean_summary(r.summary),
-                created_at=r.uploaded_at
+                created_at=r.uploaded_at,  
+                status=r.status
             )
             for r in reports
         ]
@@ -94,7 +99,6 @@ async def get_report_list(
             total_pages=total_pages,
             data=response_data
         )
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -114,15 +118,19 @@ async def update_report_name(
             report_id=payload.report_id,
             new_name=payload.report_name
         )
-
+        
         if not updated:
             raise HTTPException(
                 status_code=404,
                 detail="Report not found"
             )
-
-        return updated
-
+        
+        return schema.ReportNameUpdateResponse(
+            report_id=updated.report_id,
+            report_name=updated.report_name
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -149,6 +157,9 @@ async def delete_report(
             )
 
         return result
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(
