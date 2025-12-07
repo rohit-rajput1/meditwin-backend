@@ -8,7 +8,7 @@ Defines the Report model for a PostgreSQL database using SQLAlchemy ORM.
 - Tracks upload timestamp.
 - Related to Chat model for discussions on the report.
 """
-from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy import JSON, DateTime, ForeignKey, String,Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -38,7 +38,7 @@ class Report(Base):
     insights: Mapped[dict] = mapped_column(JSON, nullable=True)
     recommendations: Mapped[dict] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String, default="processing")
-
+    is_valid_report: Mapped[bool] = mapped_column(Boolean, default=True)
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.now(timezone.utc)
