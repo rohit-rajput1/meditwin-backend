@@ -6,7 +6,7 @@ Defines the Message model for a PostgreSQL database using SQLAlchemy ORM.
 - Stores user query, bot response, metadata, and creation timestamp.
 """
 
-from sqlalchemy import ForeignKey, DateTime, Text, JSON, String
+from sqlalchemy import ForeignKey, DateTime, Text, JSON, String,Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone
@@ -27,7 +27,7 @@ class Message(Base):
     user_query: Mapped[str] = mapped_column(String)  # user input/query
     bot_response: Mapped[str] = mapped_column(Text)  # bot reply
     metadatas: Mapped[dict] = mapped_column(JSON)  # optional metadata
-
+    is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
     # Timestamp
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
