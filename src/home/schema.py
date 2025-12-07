@@ -1,12 +1,12 @@
 from pydantic import BaseModel
 from uuid import UUID
-from typing import List,Optional,Union
+from typing import List, Optional, Union
 from datetime import datetime
 
 class ReportTypeResponse(BaseModel):
     report_type_id: UUID
     name: str
-
+    
     class Config:
         orm_mode = True
 
@@ -18,7 +18,9 @@ class ReportListItem(BaseModel):
     report_name: Optional[str]
     report_type: str
     summary: Optional[Union[dict, str]]
-
+    created_at: datetime 
+    status: Optional[str] = None
+    
     class Config:
         orm_mode = True
 
@@ -36,7 +38,7 @@ class ReportNameUpdateRequest(BaseModel):
 class ReportNameUpdateResponse(BaseModel):
     report_id: UUID
     report_name: str
-
+    
     class Config:
         orm_mode = True
 
@@ -45,7 +47,7 @@ class ReportDeleteRequest(BaseModel):
 
 class ReportDeleteResponse(BaseModel):
     report_id: UUID
-    report_name: str
+    report_name: Optional[str] = None
     message: str
 
     class Config:
