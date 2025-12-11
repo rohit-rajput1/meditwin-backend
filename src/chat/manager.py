@@ -83,7 +83,7 @@ async def continue_chat(data, db: AsyncSession, user_id: UUID):
     messages.append({"role": "user", "content": data.user_query})
 
     response = await client.chat.completions.create(
-        model="gpt-4.1",
+        model="gpt-4o",
         messages=messages,
     )
     bot_answer = response.choices[0].message.content
