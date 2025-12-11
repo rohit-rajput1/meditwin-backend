@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
 from uuid import UUID
+from uuid import uuid4
 from database.models.report import Report
 from database.models.report_type import ReportType
 from database.models.dashboard import Dashboard
@@ -325,38 +326,62 @@ def validate_dashboard_data(dashboard_data: dict, dashboard_type: str):
 # Dashboard Creation
 async def create_dashboard(file_id: UUID, db: AsyncSession):
     try:
-        # Fetch report and report type
-        report = await get_report(file_id, db)
-        report_type = await get_report_type(report.report_type_id, db)
+        # Fetch report details
+        report_query = await db.execute(
+            select(Report).where(Report.report_id == file_id)
+        )
+        report = report_query.scalar_one_or_none()
 
-        # FIX: Check if dashboard already exists
-        existing = await db.execute(
+        if not report:
+            raise HTTPException(404, "Report not found.")
+
+        # If dashboard exists → return it immediately
+        existing_query = await db.execute(
             select(Dashboard).where(Dashboard.report_id == report.report_id)
         )
-        existing_dashboard = existing.scalar_one_or_none()
+        existing_dashboard = existing_query.scalar_one_or_none()
 
         if existing_dashboard:
-            return existing_dashboard
+            return existing_dashboard   # ← prevents duplicate insert
 
-        # Prepare prompt
-        prompt, dashboard_type = prepare_prompt(report_type.name.lower(), report)
+        # Fetch report type
+        report_type_query = await db.execute(
+            select(ReportType).where(ReportType.report_type_id == report.report_type_id)
+        )
+        report_type = report_type_query.scalar_one_or_none()
 
-        # Extract data from LLM
-        extracted = await extract_dashboard_data_from_llm(prompt, dashboard_type)
+        if not report_type:
+            raise HTTPException(404, "Report type not found.")
 
-        # Validate and clean the extracted data
-        validated_data = validate_dashboard_data(extracted, dashboard_type)
+        # Generate prompt + dashboard type
+        prompt, dashboard_type = prepare_prompt(
+            report_type.name.lower(),
+            report
+        )
 
-        # Create dashboard
+        # Extract dashboard data from LLM
+        extracted_data = await extract_dashboard_data_from_llm(
+            prompt,
+            dashboard_type
+        )
+
+        # Validate + normalize
+        validated = validate_dashboard_data(
+            extracted_data,
+            dashboard_type
+        )
+
+        # Create dashboard entry
         dashboard = Dashboard(
+            dashboard_id=uuid4(),
+            dashboard_type=dashboard_type,
             user_id=report.user_id,
             report_id=report.report_id,
             report_type_id=report.report_type_id,
-            dashboard_type=dashboard_type,
-            top_bar=validated_data["topBar"],
-            middle_section=validated_data["middleSection"],
-            recommendations=validated_data["recommendations"],
-            critical_insights=validated_data["criticalInsights"],
+            top_bar=validated["topBar"],
+            middle_section=validated["middleSection"],
+            recommendations=validated["recommendations"],
+            critical_insights=validated["criticalInsights"],
         )
 
         db.add(dashboard)
@@ -368,24 +393,27 @@ async def create_dashboard(file_id: UUID, db: AsyncSession):
     except HTTPException:
         await db.rollback()
         raise
+
     except Exception as e:
         await db.rollback()
         traceback.print_exc()
+        raise HTTPException(500, f"Dashboard creation failed: {str(e)}")
     
 async def get_dashboard_by_file_id(file_id: UUID, db: AsyncSession):
-    try:
-        result = await db.execute(
-            select(Dashboard).where(Dashboard.report_id == file_id)
-        )
-        
-        dashboard = result.scalar_one_or_none()
+    query = await db.execute(
+        select(Report).where(Report.report_id == file_id)
+    )
+    report = query.scalar_one_or_none()
 
-        if not dashboard:
-            raise HTTPException(404, "Dashboard not found for this file_id")
+    if not report:
+        raise HTTPException(404, "Report not found.")
 
-        return dashboard
+    dashboard_query = await db.execute(
+        select(Dashboard).where(Dashboard.report_id == report.report_id)
+    )
+    dashboard = dashboard_query.scalar_one_or_none()
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(500, f"Error fetching dashboard: {str(e)}")
+    if not dashboard:
+        raise HTTPException(404, "Dashboard not found for this file.")
+
+    return dashboard
