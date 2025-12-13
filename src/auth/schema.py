@@ -66,4 +66,4 @@ class HealthInfoResponse(BaseModel):
     current_medications: List[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
