@@ -10,7 +10,7 @@ from .utils import build_prompt
 from openai import AsyncOpenAI
 import config
 
-client = AsyncOpenAI(api_key=config.OPENAI_KEY) 
+client = AsyncOpenAI(api_key=config.OPENAI_API_KEY) 
 
 async def create_chat(db: AsyncSession, user_id: UUID, file_id: UUID):
     try:

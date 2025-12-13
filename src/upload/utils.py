@@ -5,7 +5,7 @@ from PIL import Image, ImageOps, ImageEnhance
 from openai import OpenAI
 import config
 
-openai_client = OpenAI(api_key=config.OPENAI_KEY)
+openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
 
 def generate_namespace(file_id: uuid.UUID, filename: str) -> str:
     """Generate a unique namespace for Pinecone."""

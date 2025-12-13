@@ -20,7 +20,7 @@ SESSION_COOKIE = os.getenv("SESSION_COOKIE")
 SESSION_MAX_AGE = int(os.getenv("SESSION_MAX_AGE", 3600))
 
 # AI Configuration
-OPENAI_KEY = os.getenv("OPENAI_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Pinecone Configuration
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
