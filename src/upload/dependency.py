@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 import config
 
 # OpenAI Initialization
-openai_client = OpenAI(api_key=config.OPENAI_KEY)
+openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
 
 # Pinecone Initialization
 pinecone_client = Pinecone(api_key=config.PINECONE_API_KEY)
