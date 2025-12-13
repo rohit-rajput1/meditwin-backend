@@ -8,7 +8,7 @@ class ReportTypeResponse(BaseModel):
     name: str
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class StatusItem(BaseModel):
     status: str
@@ -22,7 +22,7 @@ class ReportListItem(BaseModel):
     status: Optional[str] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PaginatedReportList(BaseModel):
     page: int
@@ -40,7 +40,7 @@ class ReportNameUpdateResponse(BaseModel):
     report_name: str
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ReportDeleteRequest(BaseModel):
     report_id: UUID
@@ -51,4 +51,4 @@ class ReportDeleteResponse(BaseModel):
     message: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
