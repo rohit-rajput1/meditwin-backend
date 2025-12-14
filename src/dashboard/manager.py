@@ -13,6 +13,7 @@ from src.dashboard.prompt import (
     PROMPT_MEDICAL_PRESCRIPTION,
     PROMPT_BLOOD_REPORT,
 )
+from sqlalchemy.exc import IntegrityError
 from src.upload.dependency import openai_client
 
 
@@ -326,84 +327,69 @@ def validate_dashboard_data(dashboard_data: dict, dashboard_type: str):
 # Dashboard Creation
 async def create_dashboard(file_id: UUID, db: AsyncSession):
     try:
-        # Fetch report details
-        report_query = await db.execute(
+        report = await db.scalar(
             select(Report).where(Report.report_id == file_id)
         )
-        report = report_query.scalar_one_or_none()
         if not report:
-            raise HTTPException(404, "Report not found.")
+            raise HTTPException(404, "Report not found")
 
-        # Check if dashboard already exists for THIS report_id
-        existing_query = await db.execute(
-            select(Dashboard).where(Dashboard.report_id == report.report_id)
-        )
-        existing_dashboard = existing_query.scalar_one_or_none()
-        
-        if existing_dashboard:
-            return existing_dashboard
+        # store primitives EARLY
+        report_id = report.report_id
+        user_id = report.user_id
+        report_type_id = report.report_type_id
 
-        # Fetch report type
-        report_type_query = await db.execute(
-            select(ReportType).where(ReportType.report_type_id == report.report_type_id)
+        existing = await db.scalar(
+            select(Dashboard).where(Dashboard.report_id == report_id)
         )
-        report_type = report_type_query.scalar_one_or_none()
+        if existing:
+            return existing
+
+        report_type = await db.scalar(
+            select(ReportType).where(ReportType.report_type_id == report_type_id)
+        )
         if not report_type:
-            raise HTTPException(404, "Report type not found.")
+            raise HTTPException(404, "Report type not found")
 
-        # Generate prompt + dashboard type
         prompt, dashboard_type = prepare_prompt(
             report_type.name.lower(), report
         )
 
-        # Extract dashboard data from LLM
-        extracted_data = await extract_dashboard_data_from_llm(
-            prompt, dashboard_type
-        )
+        extracted = await extract_dashboard_data_from_llm(prompt, dashboard_type)
+        validated = validate_dashboard_data(extracted, dashboard_type)
 
-        # Validate + normalize
-        validated = validate_dashboard_data(
-            extracted_data, dashboard_type
-        )
-
-        # Create NEW dashboard with NEW dashboard_id for report_id
         dashboard = Dashboard(
             dashboard_id=uuid4(),
             dashboard_type=dashboard_type,
-            user_id=report.user_id,
-            report_id=report.report_id, 
-            report_type_id=report.report_type_id,
+            user_id=user_id,
+            report_id=report_id,
+            report_type_id=report_type_id,
             top_bar=validated["topBar"],
             middle_section=validated["middleSection"],
             recommendations=validated["recommendations"],
             critical_insights=validated["criticalInsights"],
         )
-        
+
         db.add(dashboard)
-        
+
         try:
             await db.commit()
             await db.refresh(dashboard)
             return dashboard
-        except Exception as commit_error:
+
+        except IntegrityError:
             await db.rollback()
-            # Handle race condition where another request created dashboard
-            if "duplicate key" in str(commit_error).lower() and "report_id" in str(commit_error).lower():
-                # Another request just created a dashboard for this report_id
-                retry_query = await db.execute(
-                    select(Dashboard).where(Dashboard.report_id == report.report_id)
-                )
-                existing = retry_query.scalar_one_or_none()
-                if existing:
-                    return existing
-            # Re-raise if it's a different error
-            raise HTTPException(500, f"Database error: {str(commit_error)}")
+            # race condition safe retry
+            existing = await db.scalar(
+                select(Dashboard).where(Dashboard.report_id == report_id)
+            )
+            if existing:
+                return existing
+            raise
 
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
-        traceback.print_exc()
         raise HTTPException(500, f"Dashboard creation failed: {str(e)}")
     
 async def get_dashboard_by_file_id(file_id: UUID, db: AsyncSession):
