@@ -7,7 +7,7 @@ from database.models.report import Report
 from database.models.message import Message
 from database.models.report_type import ReportType
 from .utils import build_prompt
-from openai import AsyncOpenAI
+from langfuse.openai import AsyncOpenAI
 import config
 
 client = AsyncOpenAI(api_key=config.OPENAI_API_KEY) 

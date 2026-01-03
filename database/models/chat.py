@@ -12,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 import uuid
 from database.base import Base
+from sqlalchemy.sql import func
 
 class Chat(Base):
     __tablename__ = "chat"
@@ -22,7 +23,7 @@ class Chat(Base):
     chat_name: Mapped[str] = mapped_column(String)
     is_valid_chat: Mapped[bool] = mapped_column(Boolean, default=True)
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         default=datetime.now(timezone.utc), 
