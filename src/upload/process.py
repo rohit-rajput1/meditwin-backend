@@ -91,7 +91,7 @@ async def generate_embedding(text: str):
                 f"(minimum {MIN_TEXT_LENGTH} required)"
             )
         
-        truncated_text = text[:8000]
+        truncated_text = text[:80000]
         
         response = openai_client.embeddings.create(
             model="text-embedding-3-small",

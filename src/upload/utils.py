@@ -2,7 +2,7 @@ import uuid
 import base64
 from io import BytesIO
 from PIL import Image, ImageOps, ImageEnhance
-from openai import OpenAI
+from langfuse.openai import OpenAI
 import config
 
 openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
