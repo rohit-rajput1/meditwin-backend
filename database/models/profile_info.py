@@ -19,24 +19,14 @@ class UserProfile(Base):
 
     # Primary key UUID
     profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    
-    # Foreign key linking to User
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.user_id"))
-
-    # Profile details
     first_name: Mapped[str] = mapped_column(String)
     last_name: Mapped[str] = mapped_column(String)
     phone: Mapped[str] = mapped_column(String)
     location: Mapped[str] = mapped_column(String)
     date_of_birth: Mapped[Date] = mapped_column(Date)
-
-    # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
-        default=datetime.now(timezone.utc), 
-        onupdate=datetime.now(timezone.utc)
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # Relationship to User
     user = relationship("User", back_populates="profile")  # One-to-one link to User
